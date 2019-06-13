@@ -1,0 +1,206 @@
+﻿@model MeetingScheduler.Models.Meeting
+@{
+    Layout = null;
+    ViewBag.Title = "Scheduler";
+}
+
+<h2>Scheduler   </h2>
+
+<a asp-controller="Home" asp-action="Create">
+    <input type="button" class="btn btn-primary" value="Add meet" />
+</a>
+
+
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+    <meta charset='utf-8' />
+
+    <link href='~/fullcalendar/core/main.css' rel='stylesheet' />
+    <link href='~/fullcalendar/daygrid/main.css' rel='stylesheet' />
+    <link href='~/fullcalendar/timegrid/main.css' rel='stylesheet' />
+
+
+    <script src='~/fullcalendar/core/main.js'></script>
+    <script src='~/fullcalendar/daygrid/main.js'></script>
+    <script src='~/fullcalendar/timegrid/main.js'></script>
+    <script src='~/fullcalendar/moment/main.js'></script>
+    <script src='~/fullcalendar/moment-timezone/main.js'></script>
+    <script src='~/fullcalendar/resource-common/main.js'></script>
+    <script src='~/fullcalendar/resource-daygrid/main.js'></script>
+    <script src='~/fullcalendar/resource-timegrid/main.js'></script>
+
+    <script src='~/popper/popper.min.js'></script>
+    <script src='~/popper/tooltip.min.js'></script>
+
+    <style>
+
+
+
+        .popper,
+        .tooltip {
+            position: absolute;
+            z-index: 9999;
+            background: #FFC107;
+            color: black;
+            width: 150px;
+            border-radius: 3px;
+            box-shadow: 0 0 2px rgba(0,0,0,0.5);
+            padding: 10px;
+            text-align: center;
+        }
+
+        .style5 .tooltip {
+            background: #1E252B;
+            color: #FFFFFF;
+            max-width: 200px;
+            width: auto;
+            font-size: .8rem;
+            padding: .5em 1em;
+        }
+
+        .popper .popper__arrow,
+        .tooltip .tooltip-arrow {
+            width: 0;
+            height: 0;
+            border-style: solid;
+            position: absolute;
+            margin: 5px;
+        }
+
+        .tooltip .tooltip-arrow,
+        .popper .popper__arrow {
+            border-color: #FFC107;
+        }
+
+        .style5 .tooltip .tooltip-arrow {
+            border-color: #1E252B;
+        }
+
+        .popper[x-placement^="top"],
+        .tooltip[x-placement^="top"] {
+            margin-bottom: 5px;
+        }
+
+            .popper[x-placement^="top"] .popper__arrow,
+            .tooltip[x-placement^="top"] .tooltip-arrow {
+                border-width: 5px 5px 0 5px;
+                border-left-color: transparent;
+                border-right-color: transparent;
+                border-bottom-color: transparent;
+                bottom: -5px;
+                left: calc(50% - 5px);
+                margin-top: 0;
+                margin-bottom: 0;
+            }
+
+        .popper[x-placement^="bottom"],
+        .tooltip[x-placement^="bottom"] {
+            margin-top: 5px;
+        }
+
+            .tooltip[x-placement^="bottom"] .tooltip-arrow,
+            .popper[x-placement^="bottom"] .popper__arrow {
+                border-width: 0 5px 5px 5px;
+                border-left-color: transparent;
+                border-right-color: transparent;
+                border-top-color: transparent;
+                top: -5px;
+                left: calc(50% - 5px);
+                margin-top: 0;
+                margin-bottom: 0;
+            }
+
+        .tooltip[x-placement^="right"],
+        .popper[x-placement^="right"] {
+            margin-left: 5px;
+        }
+
+            .popper[x-placement^="right"] .popper__arrow,
+            .tooltip[x-placement^="right"] .tooltip-arrow {
+                border-width: 5px 5px 5px 0;
+                border-left-color: transparent;
+                border-top-color: transparent;
+                border-bottom-color: transparent;
+                left: -5px;
+                top: calc(50% - 5px);
+                margin-left: 0;
+                margin-right: 0;
+            }
+
+        .popper[x-placement^="left"],
+        .tooltip[x-placement^="left"] {
+            margin-right: 5px;
+        }
+
+            .popper[x-placement^="left"] .popper__arrow,
+            .tooltip[x-placement^="left"] .tooltip-arrow {
+                border-width: 5px 0 5px 5px;
+                border-top-color: transparent;
+                border-right-color: transparent;
+                border-bottom-color: transparent;
+                right: -5px;
+                top: calc(50% - 5px);
+                margin-left: 0;
+                margin-right: 0;
+            }
+    </style>
+
+    <script>
+
+        document.addEventListener('DOMContentLoaded', function () {
+            var calendarEl = document.getElementById('calendar');
+
+            var calendar = new FullCalendar.Calendar(calendarEl, {
+                plugins: ['resourceTimeGrid'],
+                schedulerLicenseKey: 'GPL-My-Project-Is-Open-Source',
+                locale: 'ru',
+                timeZone: 'Europe/Moscow',
+                defaultView: 'resourceTimeGridFourDay',
+
+
+
+                datesAboveResources: true,
+                header: {
+                    left: 'prev,next',
+                    center: 'title',
+                    right: 'resourceTimeGridDay,resourceTimeGridFourDay'
+                },
+                views: {
+                    resourceTimeGridFourDay: {
+                        type: 'resourceTimeGrid',
+                        duration: { days: 4 },
+                        buttonText: '4 days'
+                    }
+                },
+
+                resources: '/Home/GetRooms',
+
+                eventRender: function (info) {
+                    var tooltip = new Tooltip(info.el, {
+                        title: 'Creator: ' + info.event.extendedProps.userid + ' Attendees: ' + info.event.extendedProps.description,
+                        placement: 'top',
+                        trigger: 'hover',
+                        container: 'body'
+                    });
+                },
+                events: '/Home/GetEvents',
+
+                eventClick: function (info) {
+                    info.jsEvent.preventDefault(); // don't let the browser navigate
+
+                    window.open("/Home/Edit?id=" + info.event.id);
+                }
+
+            });
+
+            calendar.render();
+        });
+
+    </script>
+</head>
+<body>
+    <div id='calendar'></div>
+
+</body>
+</html>
