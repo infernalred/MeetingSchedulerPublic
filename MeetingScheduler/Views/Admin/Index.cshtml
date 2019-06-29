@@ -1,0 +1,17 @@
+﻿
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Admin page</h1>
+
+
+<div>
+    <text> List rooms</text> <a asp-controller="Rooms" asp-action="Index">
+    <input type="button" class="btn btn-primary" value="Rooms" /></a>
+</div>
+<div>
+    <text> List peoples</text> <a asp-controller="Users" asp-action="Index">
+    <input type="button" class="btn btn-primary" value="Peoples" ></a> | <a asp-controller="Users" asp-action="Sync"> <input type="button" class="btn btn-primary" value="Sync from AD" ></a>
+</div>
+

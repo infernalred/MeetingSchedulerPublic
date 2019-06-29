@@ -11,6 +11,8 @@ using MeetingScheduler.Models;
 using Microsoft.EntityFrameworkCore;
 using MeetingScheduler.Services;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Server.IISIntegration;
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace MeetingScheduler
 {
@@ -32,13 +34,19 @@ namespace MeetingScheduler
                 options.CheckConsentNeeded = context => true;
             });
 
-
+            //services.AddAuthentication(IISDefaults.AuthenticationScheme);
             services.AddControllersWithViews()
                 .AddNewtonsoftJson();
             string connection = Configuration.GetConnectionString("SQLEXPRESS");
             services.AddDbContext<MeetingContext>(options => options.UseSqlServer(connection));
+            services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+                .AddCookie(options =>
+                {
+                    options.LoginPath = new Microsoft.AspNetCore.Http.PathString("/Account/Login");
+                    options.AccessDeniedPath = "/Identity/Account/AccessDenied";
+                });
             services.AddRazorPages();
-            services.AddSingleton<PeopleService>();
+            services.AddTransient<PeopleService>();
             services.Configure<LdapSettings>(Configuration.GetSection("LDAPConnection"));
             services.AddSingleton<MailService>();
             services.Configure<MailSettings>(Configuration.GetSection("Mail"));
@@ -47,6 +55,7 @@ namespace MeetingScheduler
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
@@ -57,6 +66,8 @@ namespace MeetingScheduler
             }
 
             app.UseStaticFiles();
+
+            app.UseAuthentication();
 
             app.UseCookiePolicy();
 

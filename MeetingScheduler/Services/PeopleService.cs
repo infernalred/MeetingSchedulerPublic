@@ -6,51 +6,47 @@ using System.DirectoryServices;
 using MeetingScheduler.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
+using System.DirectoryServices.Protocols;
+using System.Net;
+using System.DirectoryServices.AccountManagement;
 
 namespace MeetingScheduler.Services
 {
     public class LdapSettings
     {
+        public string Ldap { get; set; }
         public string Domain { get; set; }
         public string UserName { get; set; }
         public string Password { get; set; }
+        public string AdminGroup { get; set; }
+        public string ManagerGroup { get; set; }
     }
     public class PeopleService
     {
-        private string samAccount = "sAMAccountName";
-        private string mail = "mail";
-        private string cn = "cn";
-        private string _domain;
-        private string _userName;
-        private string _password;
-        //public List<PeopleService>();
+        private readonly string samAccount = "sAMAccountName";
+        private readonly string mail = "mail";
+        private readonly string cn = "cn";
+        private readonly string _ldap;
+        private readonly string _domain;
+        private readonly string _userName;
+        private readonly string _password;
+        private readonly string _adminGroup;
+        private readonly string _managerGroup;
         public Dictionary<string, User> allPeople = new Dictionary<string, User>();
 
         public PeopleService(IOptions<LdapSettings> ldap)
         {
+            _ldap = ldap.Value.Ldap;
             _domain = ldap.Value.Domain;
             _userName = ldap.Value.UserName;
             _password = ldap.Value.Password;
-            FillDictionary();
+            _adminGroup = ldap.Value.AdminGroup;
+            _managerGroup = ldap.Value.ManagerGroup;
         }
 
-        protected void FillDictionary()
+        public void FillDictionary()
         {
-            //User user = new User();
-            //user.Id = "t.testov";
-            //user.EmailAddress = "t.testov@redware.ru";
-            //user.CN = "name1 Lastname1";
-            //allPeople.Add(user.Id, user);
-            //User user2 = new User();
-            //user2.Id = "p.petrov";
-            //user2.EmailAddress = "p.petrov@redware.ru";
-            //user2.CN = "petr petrov";
-            //allPeople.Add(user2.Id, user2);
-
-
-
-
-            DirectoryEntry searchRoot = new DirectoryEntry(_domain);
+            DirectoryEntry searchRoot = new DirectoryEntry(_ldap);
             searchRoot.Username = _userName;
             searchRoot.Password = _password;
             using (DirectorySearcher directorySearcher = new DirectorySearcher(searchRoot))
@@ -81,10 +77,37 @@ namespace MeetingScheduler.Services
         }
         public List<User> GetAllUser()
         {
-
-
             return allPeople.Values.ToList();
         }
+
+        public UserManager Login(string username, string password)
+        {
+            UserManager userLogin = null;
+            using (var context = new PrincipalContext(ContextType.Domain, _domain, _userName, _password))
+            {
+                if (context.ValidateCredentials(username, password))
+                {
+                    var principal = UserPrincipal.FindByIdentity(context, IdentityType.SamAccountName, username);
+                    userLogin = new UserManager();
+                    userLogin.Id = principal.SamAccountName;
+                    userLogin.Email = principal.EmailAddress;
+                    Role role = new Role();
+                    role.Id = 1;
+                    role.Name = "User";
+                    if (principal.IsMemberOf(context, IdentityType.Name, _managerGroup) == true)
+                    {
+                        role.Name = "Manager";
+                    }
+                    if (principal.IsMemberOf(context, IdentityType.Name, _adminGroup) == true)
+                    {
+                        role.Name = "Admin";
+                    }
+                    userLogin.Role = role;
+                    role.Users.Add(userLogin);
+                }
+                return userLogin;
+            }
+        }
     }
-    
+
 }

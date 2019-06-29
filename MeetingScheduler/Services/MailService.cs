@@ -1,4 +1,5 @@
 ﻿using MailKit.Net.Smtp;
+using MeetingScheduler.Models;
 using Microsoft.Extensions.Options;
 using MimeKit;
 using System;
@@ -23,6 +24,7 @@ namespace MeetingScheduler.Services
         private readonly string _username;
         private readonly string _password;
         private readonly bool _ssl;
+        
 
         public MailService(IOptions<MailSettings> setemail)
         {
@@ -49,11 +51,62 @@ namespace MeetingScheduler.Services
 
             using (var client = new SmtpClient())
             {
-                await client.ConnectAsync(_server, _port, _ssl);
-                await client.AuthenticateAsync(_username, _password);
-                await client.SendAsync(emailMessage);
+                try
+                {
+                    await client.ConnectAsync(_server, _port, _ssl);
+                    await client.AuthenticateAsync(_username, _password);
+                    await client.SendAsync(emailMessage);
+                }
+                catch (Exception e)
+                {
 
-                await client.DisconnectAsync(true);
+                    Console.WriteLine("Error sent message {0}", e.Message);
+                }
+                finally
+                {
+
+                    await client.DisconnectAsync(true);
+                }
+            }
+        }
+
+        public async Task SendEmailAsync(Message message)
+        {
+            var emailMessage = new MimeMessage();
+
+            emailMessage.From.Add(new MailboxAddress("Meet", _username));
+            foreach (var email in message.Users)
+            {
+                emailMessage.To.Add(new MailboxAddress("", email));
+            }
+            emailMessage.Subject = message.Theme;
+            emailMessage.Body = new TextPart(MimeKit.Text.TextFormat.Html)
+            {
+                Text = message.Body
+            };
+
+            await Send(emailMessage);
+        }
+        private async Task Send(MimeMessage emailMessage)
+        {
+            using (var client = new SmtpClient())
+            {
+                try
+                {
+                    await client.ConnectAsync(_server, _port, _ssl);
+                    await client.AuthenticateAsync(_username, _password);
+                    await client.SendAsync(emailMessage);
+                }
+                catch (Exception e)
+                {
+
+                    Console.WriteLine("Error sent message {0}", e.Message);
+                }
+                finally
+                {
+
+                    await client.DisconnectAsync(true);
+                }
             }
         }
     }

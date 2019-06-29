@@ -40,6 +40,11 @@
                 <select asp-for="RoomId" class="form-control" asp-items="@ViewData["DropDownRoom"] as SelectList"></select>
             </div>
             <div class="form-group">
+                <label asp-for="UserId" class="control-label"></label>
+                <input asp-for="UserId" class="form-control" value="@ViewData["UserId"]" readonly/>
+                <span asp-validation-for="UserId" class="text-danger"></span>
+            </div>
+            <div class="form-group">
                 <label asp-for="SelectedPeople" class="control-label"></label>
                 @Html.ListBoxFor(m => m.SelectedPeople, (@ViewData["DropDownPeople"] as MultiSelectList), new { id = "attenders", multiple = "multiple" })
                 <span asp-validation-for="SelectedPeople" class="text-danger"></span>

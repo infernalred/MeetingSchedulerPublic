@@ -29,9 +29,9 @@ namespace MeetingScheduler.Models
         public int ResourceId { get; set; }
         public int RoomId { get; set; }
         public Room Room { get; set; }
-        //public string Userid { get; set; }
-        public string UserIds { get; set; }
+        public string UserId { get; set; }
         //public User User { get; set; }
+        public string UserIds { get; set; }
         //public List<EventsUsers> EventsUsers { get; set; }
         [HiddenInput(DisplayValue = false)]
         [System.ComponentModel.DataAnnotations.Schema.NotMapped]

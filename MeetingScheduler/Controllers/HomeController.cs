@@ -11,20 +11,22 @@ using System.Security.Claims;
 using MeetingScheduler.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Authorization;
 
 namespace MeetingScheduler.Controllers
 {
     public class HomeController : Controller
     {
         private readonly MeetingContext _db1;
-        private readonly PeopleService _people;
         private readonly MailService _mailService;
-        public HomeController(MeetingContext context, PeopleService people, MailService mailService)
+        
+        public HomeController(MeetingContext context, MailService mailService)
         {
-            _people = people;
             _db1 = context;
-            _mailService = mailService;
+            _mailService = mailService;  
         }
+
 
         public IActionResult Index()
         {
@@ -54,14 +56,33 @@ namespace MeetingScheduler.Controllers
         }
         
         [HttpGet]
+        [AllowAnonymous]
+        public async Task<IActionResult> Details(int id)
+        {
+            Meeting meet = await _db1.Meeting.FirstOrDefaultAsync(m => m.Id == id);
+            if (meet != null)
+            {
+                meet.SelectedPeople = meet.UserIds.Split(",").ToArray();
+                meet.Room = _db1.Rooms.Find(meet.RoomId);
+                //meet.SelectedPeople = meet.EventsUsers.Select(m => m.UserId).ToArray();
+                return View(meet);
+            }
+            return NotFound();
+        }
+
+        [HttpGet]
+        [Authorize(Roles = "Admin,Manager")]
         public IActionResult Create()
         {
+            string username = User.Identity.Name;
+            ViewData["UserId"] = username;
             ViewData["DropDownRoom"] = new SelectList(_db1.Rooms, "Id", "Title");
-            ViewData["DropDownPeople"] = new MultiSelectList(_people.GetAllUser(), "Id", "CN");
+            ViewData["DropDownPeople"] = new MultiSelectList(_db1.Users, "Id", "CN");
             return View();
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<ActionResult> Create(Meeting meet)
         {
             meet.Start = new DateTime(meet.Date.Year, meet.Date.Month, meet.Date.Day, meet.TimeStart.Hours, meet.TimeStart.Minutes, meet.TimeStart.Seconds);
@@ -76,11 +97,12 @@ namespace MeetingScheduler.Controllers
             //}
             
             await _db1.SaveChangesAsync();
-            await SendMessage(meet.SelectedPeople, meet.Title, "Вы были приглашены на событие.", meet.RoomId, meet.Start, meet.TimeEnd);
+            await Message1(meet, Models.Type.MeetCreated);
             return RedirectToAction("Index");
         }
 
         [HttpGet]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> Edit(int id)
         {
             Meeting meet = await _db1.Meeting.FirstOrDefaultAsync(m => m.Id == id);
@@ -88,14 +110,17 @@ namespace MeetingScheduler.Controllers
             {
                 meet.SelectedPeople = meet.UserIds.Split(",").ToArray();
                 //meet.SelectedPeople = meet.EventsUsers.Select(m => m.UserId).ToArray();
+                string username = User.Identity.Name;
+                ViewData["UserId"] = username;
                 ViewData["DropDownRoom"] = new SelectList(_db1.Rooms, "Id", "Title");
-                ViewData["DropDownPeople"] = new MultiSelectList(_people.GetAllUser(), "Id", "CN");
+                ViewData["DropDownPeople"] = new MultiSelectList(_db1.Users, "Id", "CN");
                 return View(meet);
             }
             return NotFound();
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> Edit(Meeting meet)
         {
             //Meeting tmp = await _db1.Meeting.FirstOrDefaultAsync(m => m.Id == meet.Id);
@@ -122,29 +147,47 @@ namespace MeetingScheduler.Controllers
             //}
 
             await _db1.SaveChangesAsync();
-            await SendMessage(meet.SelectedPeople, meet.Title, "Сообщаем об изменении события.", meet.RoomId, meet.Start, meet.TimeEnd);
+
+            await Message1(meet, Models.Type.MeetEdited);
             return RedirectToAction("Index");
         }
 
-        //[HttpGet]
-        //public IActionResult GetPeoples(string search)
-        //{
-        //    var users = from s in _db1.Users select s;
-        //    return Json(users = users.Where(s => s.CN.Contains(search)));
-        //}
-
-        public async Task SendMessage(string[] users, string theme, string body, int roomId, DateTime data, TimeSpan endTime)
+        public async Task Message1(Meeting meet, Enum type)
         {
-
-            string[] emails = new string[users.Length];
-            for (int i = 0; i < users.Length; i++)
+            Message message = new Message();
+            foreach (string user in meet.SelectedPeople)
             {
-                emails[i] = _people.allPeople[(users[i])].EmailAddress;
+                string email = _db1.Users.Find(user).EmailAddress;
+                message.Users.Add(email);
             }
-            string room = _db1.Rooms.Find(roomId).Title;
-            theme = theme + ".  " + body;
-            string bodyMessage = "Митинг состоится " + data.ToString() + " до " + endTime.ToString() + " в переговорке " + room;
-            await _mailService.SendEmailAsync(emails, theme, bodyMessage);
+            message.Room = _db1.Rooms.Find(meet.RoomId).Title;
+            message.Theme = meet.Title;
+            message.Body = _body[type] (meet.Start.ToString(), meet.TimeEnd.ToString(), message.Room);
+            await _mailService.SendEmailAsync(message);
+        }
+
+        private Dictionary<Enum, Func<string, string, string, string>> _body = new Dictionary<Enum, Func<string, string, string, string>>
+        {
+            { Models.Type.MeetCreated, MeetCreated },
+            { Models.Type.MeetEdited, MeetEdited },
+            { Models.Type.MeetCanceled, MeetCanceled },
+        };
+
+
+        static string MeetCreated(string start, string end, string room)
+        {
+            return "The meeting has been created. From " + start + " to " + end + " in room " + room;
+        }
+
+        static string MeetEdited(string start, string end, string room)
+        {
+            return "The meeting has been changed. New time from " + start + " to " + end + " in room " + room;
+        }
+
+        static string MeetCanceled(string start, string end, string room)
+        {
+            return "The meeting has been canceled.";
         }
     }
+    
 }

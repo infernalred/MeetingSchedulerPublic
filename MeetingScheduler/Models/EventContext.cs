@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using MeetingScheduler.Models;
 
 namespace MeetingScheduler.Models
 {
@@ -10,12 +11,11 @@ namespace MeetingScheduler.Models
     {
         public DbSet<Meeting> Meeting { get; set; }
         public DbSet<Room> Rooms { get; set; }
-        //public DbSet<User> Users { get; set; }
+        public DbSet<User> Users { get; set; }
 
         public MeetingContext(DbContextOptions<MeetingContext> options) : base(options)
         {
         }
-
         //protected override void OnModelCreating(ModelBuilder modelBuilder)
         //{
         //    modelBuilder.Entity<EventsUsers>()
